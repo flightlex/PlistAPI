@@ -2,7 +2,7 @@
 
   <PropertyGroup>
     <TargetFrameworks>netstandard2.0;netstandard2.1</TargetFrameworks>
-    <LangVersion>11.0</LangVersion>
+    <LangVersion>latest</LangVersion>
     <Nullable>enable</Nullable>
     <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
     <Authors>flightlex</Authors>
@@ -13,10 +13,11 @@
     <RepositoryType>git</RepositoryType>
     <Title>PlistAPI</Title>
     <PackageProjectUrl>https://github.com/flightlex/PlistAPI</PackageProjectUrl>
-    <PackageTags>plist; plist api; api for plist; plistapi</PackageTags>
-    <AssemblyVersion>1.0.0.0</AssemblyVersion>
+    <PackageTags>plist; plist api; api for plist; api plist; api; plistapi</PackageTags>
+    <AssemblyVersion>1.1.0.0</AssemblyVersion>
     <PackageRequireLicenseAcceptance>True</PackageRequireLicenseAcceptance>
     <PackageReadmeFile>README.md</PackageReadmeFile>
+    <FileVersion>1.1.0.0</FileVersion>
   </PropertyGroup>
 
   <ItemGroup>

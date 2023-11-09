@@ -19,7 +19,7 @@ namespace PlistAPI.General
 {
     public class Plist : Dictionary<string, object?>
     {
-        public static readonly Plist Empty = new Plist();
+        public static Plist Empty { get => new(); }
 
         // private properties
         private static readonly XmlReaderSettings _xmlSettings = new()
