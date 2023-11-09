@@ -73,8 +73,8 @@ var settings = new PlistSettings() { InvalidDataHandlingType = PlistInvalidDataH
 - Also the library uses faster value parsers *(faster float parser, and faster int parser)*
 - You can 
 
-## Library is being completely maintenanced by me, so dont be shy and pull some issues :)
-
 ## TODO
 - A little refactor
 - Add `PlistConverter` attribute for properties to automatically change the type when `serializing/deserializing` at the runtime
+
+### __Library is being completely maintenanced by me, so dont be shy and pull some issues :)__
