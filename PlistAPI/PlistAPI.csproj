@@ -4,7 +4,35 @@
     <TargetFrameworks>netstandard2.0;netstandard2.1</TargetFrameworks>
     <LangVersion>11.0</LangVersion>
     <Nullable>enable</Nullable>
+    <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
+    <Authors>flightlex</Authors>
+    <NeutralLanguage>en</NeutralLanguage>
+    <Description>Plist API that allows to serialize and deserialize directly as a specific objects</Description>
+    <PackageLicenseFile>LICENSE.txt</PackageLicenseFile>
+    <RepositoryUrl>https://github.com/flightlex/PlistAPI</RepositoryUrl>
+    <RepositoryType>git</RepositoryType>
+    <Title>PlistAPI</Title>
+    <PackageProjectUrl>https://github.com/flightlex/PlistAPI</PackageProjectUrl>
+    <PackageTags>plist; plist api; api for plist; plistapi</PackageTags>
+    <AssemblyVersion>1.0.0.0</AssemblyVersion>
+    <PackageRequireLicenseAcceptance>True</PackageRequireLicenseAcceptance>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
   </PropertyGroup>
+
+  <ItemGroup>
+    <None Remove="LICENSE" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Include="..\LICENSE.txt">
+      <Pack>True</Pack>
+      <PackagePath>\</PackagePath>
+    </None>
+    <None Include="..\README.md">
+      <Pack>True</Pack>
+      <PackagePath>\</PackagePath>
+    </None>
+  </ItemGroup>
 
   <ItemGroup>
     <PackageReference Include="csFastFloat" Version="4.1.0" />

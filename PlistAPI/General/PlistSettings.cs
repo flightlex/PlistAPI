@@ -19,15 +19,19 @@ namespace PlistAPI.General
             { nameof(OutputDataType), PlistDataType.Full },
 
             // default save options
-            { nameof(SaveOptions), SaveOptions.None }
+            { nameof(SaveOptions), SaveOptions.None },
+
+            // default invalid data handling type
+            { nameof(InvalidDataHandlingType), PlistInvalidDataHandlingType.ThrowException }
         };
 
+        public PlistInvalidDataHandlingType InvalidDataHandlingType { get; set; } = (PlistInvalidDataHandlingType)_defaultValues[nameof(InvalidDataHandlingType)];
         public PlistDataType InputDataType { get; set; } = (PlistDataType)_defaultValues[nameof(InputDataType)];
         public PlistDataType OutputDataType { get; set; } = (PlistDataType)_defaultValues[nameof(OutputDataType)];
         public SaveOptions SaveOptions { get; set; } = (SaveOptions)_defaultValues[nameof(SaveOptions)];
         public XAttribute[] RootAttributes { get; set; } = (XAttribute[])_defaultValues[nameof(RootAttributes)];
 
-        private PlistSettings()
+        public PlistSettings()
         { }
 
         public PlistSettings(PlistDataType inputDataType, PlistDataType outputDataType)

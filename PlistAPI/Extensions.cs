@@ -32,5 +32,8 @@ namespace PlistAPI
         {
             return assignType.IsAssignableFrom(type);
         }
+
+        public static bool ThrowException(this PlistInvalidDataHandlingType type)
+            => type == PlistInvalidDataHandlingType.ThrowException;
     }
 }

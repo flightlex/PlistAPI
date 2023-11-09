@@ -10,7 +10,7 @@ namespace PlistAPI.General.Serializers
 {
     internal static class PlistDeserializer
     {
-        public static T DeserializeProperties<T>(Plist plist, IEnumerable<PropertyInfo> properties)
+        public static T? DeserializeProperties<T>(Plist plist, IEnumerable<PropertyInfo> properties)
         {
             var instance = Activator.CreateInstance<T>();
 
@@ -19,7 +19,7 @@ namespace PlistAPI.General.Serializers
                 var id = prop.GetPropertyId();
                 var type = prop.PropertyType.GetValueContainerType();
 
-                object value;
+                object? value;
 
                 if (type == Enums.PlistValueContainerType.Basic)
                     value = DeserializeBasic(plist, id);
@@ -31,7 +31,7 @@ namespace PlistAPI.General.Serializers
                     value = DeserializeCollection(prop, plist);
 
                 else
-                    throw new InvalidDataException(nameof(type));
+                    return plist.Settings.InvalidDataHandlingType.ThrowException() ? throw new InvalidDataException(nameof(type)) : default(T?);
 
                 // boxing struct
                 if (typeof(T).IsValueType)
@@ -105,12 +105,12 @@ namespace PlistAPI.General.Serializers
             return value;
         }
 
-        private static object DeserializeBasic(Plist plist, string id)
+        private static object? DeserializeBasic(Plist plist, string id)
         {
-            plist.TryGetValue(id, out object value);
+            plist.TryGetValue(id, out object? value);
 
             if (value is null)
-                throw new CorruptedPlistException(nameof(id));
+                return plist.Settings.InvalidDataHandlingType.ThrowException() ? throw new CorruptedPlistException(nameof(id)) : null;
 
             return value;
         }

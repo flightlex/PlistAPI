@@ -19,6 +19,8 @@ namespace PlistAPI.General
 {
     public class Plist : Dictionary<string, object?>
     {
+        public static readonly Plist Empty = new Plist();
+
         // private properties
         private static readonly XmlReaderSettings _xmlSettings = new()
         {
@@ -77,10 +79,10 @@ namespace PlistAPI.General
             return this;
         }
 
-        private object[] LoadArray(IEnumerable<XElement> elements)
+        private object?[] LoadArray(IEnumerable<XElement> elements)
         {
             var count = elements.Count();
-            object[] arrayElements = new object[count];
+            object?[] arrayElements = new object[count];
 
             for (int i = 0; i < count; i++)
                 arrayElements[i] = GetValue(elements.ElementAt(i));
@@ -88,7 +90,7 @@ namespace PlistAPI.General
             return arrayElements;
         }
 
-        private object GetValue(XElement element)
+        private object? GetValue(XElement element)
         {
             var dataType = PlistHelper.GetValueType(element.Name.LocalName, Settings.InputDataType);
 
@@ -102,7 +104,7 @@ namespace PlistAPI.General
                 PlistValueType.Dict => new Plist(this.Settings).LoadPlist(element.Elements()),
                 PlistValueType.Array => LoadArray(element.Elements()),
 
-                _ => throw new InvalidDataException("Unsupported element type")
+                _ => Settings.InvalidDataHandlingType.ThrowException() ? throw new InvalidDataException("Unsupported element type") : null
             };
         }
 #endregion
@@ -160,11 +162,14 @@ namespace PlistAPI.General
 
             foreach (var element in plist)
             {
+                if (element.Value is null)
+                    continue;
+
                 // key
                 dict.Add(new XElement(key, element.Key));
 
-                if (element.Value is not null)
-                    dict.Add(FromValue(plist, element.Value, isFull));
+                // value
+                dict.Add(FromValue(plist, element.Value, isFull));
             }
 
             return dict;
@@ -182,7 +187,7 @@ namespace PlistAPI.General
             return array;
         }
 
-        private static XElement FromValue(Plist plist, object value, bool isFull)
+        private static XElement? FromValue(Plist plist, object value, bool isFull)
         {
             // string
             if (value is string s)
@@ -223,23 +228,23 @@ namespace PlistAPI.General
             }
 
             else
-                throw new InvalidDataException("Unsupported element type");
+                return plist.Settings.InvalidDataHandlingType.ThrowException() ? throw new InvalidDataException("Unsupported element type") : null;
         }
 #endregion
 
         // static methods
         #region statics
         #region Deserialize
-        public static T Deserialize<T>(byte[] data)
+        public static T? Deserialize<T>(byte[] data)
             => Deserialize<T>(data, PlistSettings.DefaultSettings());
 
-        public static T Deserialize<T>(byte[] data, PlistSettings settings)
+        public static T? Deserialize<T>(byte[] data, PlistSettings settings)
             => Deserialize<T>(new MemoryStream(data), settings);
 
-        public static T Deserialize<T>(Stream stream)
+        public static T? Deserialize<T>(Stream stream)
             => Deserialize<T>(stream, PlistSettings.DefaultSettings());
 
-        public static T Deserialize<T>(Stream stream, PlistSettings settings)
+        public static T? Deserialize<T>(Stream stream, PlistSettings settings)
         {
             PlistHelper.CheckForObjectAssignation<T>();
 

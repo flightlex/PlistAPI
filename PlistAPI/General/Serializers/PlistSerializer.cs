@@ -28,7 +28,7 @@ namespace PlistAPI.General.Serializers
                     plist[id] = SerializeCollection(prop, plist, value);
 
                 else
-                    throw new InvalidDataException(nameof(type));
+                    return plist.Settings.InvalidDataHandlingType.ThrowException() ? throw new InvalidDataException(nameof(type)) : Plist.Empty;
             }
 
             return plist;
