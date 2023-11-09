@@ -12,6 +12,7 @@
     <RepositoryUrl>https://github.com/flightlex/PlistAPI</RepositoryUrl>
     <RepositoryType>git</RepositoryType>
     <Title>PlistAPI</Title>
+    <Version>1.1.0</Version>
     <PackageProjectUrl>https://github.com/flightlex/PlistAPI</PackageProjectUrl>
     <PackageTags>plist; plist api; api for plist; api plist; api; plistapi</PackageTags>
     <AssemblyVersion>1.1.0.0</AssemblyVersion>
