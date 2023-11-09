@@ -1,6 +1,6 @@
 # PlistAPI
  
-PlistAPI - is a library that allows you not just `deserialize` and `serialize` the `.plist` format, but even `deserialize` and `serialize` the data as specific objects, there is an example:
+PlistAPI - is a library that allows you not just `deserialize` and `serialize` the `.plist` format, but even `deserialize` and `serialize` the data as specific objects, here is an example:
 
 ### .plist (basically a little changed .xml) format
 ```xml
