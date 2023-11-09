@@ -1,0 +1,68 @@
+﻿<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+	<dict>
+		<k>SomeInt</k>
+		<i>13371337</i>
+
+		<key>Person</key>
+		<dict>
+			<key>FirstName</key>
+			<string>John</string>
+			<key>LastName</key>
+			<s>Public</s>
+			<key>Address</key>
+			<dict>
+				<key>Street</key>
+				<s>123 Anywhere St.</s>
+				<key>City</key>
+				<string>Some Town</string>
+				<key>State</key>
+				<s>CA</s>
+				<key>Country</key>
+				<s>United States</s>
+				<key>PostalCode</key>
+				<i>12345</i>
+			</dict>
+			<key>PhoneNumbers</key>
+			<a>
+				<d>
+					<key>Arr</key>
+					<a>
+						<dict>
+							<key>SomeArrayKey</key>
+							<string>1337</string>
+						</dict>
+					</a>
+					<key>Type</key>
+					<string>Home</string>
+					<key>Number</key>
+					<string>555-555-5555</string>
+					<key>SomeOtherData</key>
+					<d>
+						<key>Name</key>
+						<s>123</s>
+					</d>
+				</d>
+				<d>
+					<k>Arr</k>
+					<array>
+						<dict>
+							<key>SomeArrayKey</key>
+							<string>1337</string>
+						</dict>
+					</array>
+					<key>Type</key>
+					<s>Work</s>
+					<key>Number</key>
+					<s>555-555-5556</s>
+					<key>SomeOtherData</key>
+					<d>
+						<key>Name</key>
+						<string>123</string>
+					</d>
+				</d>
+			</a>
+		</dict>
+	</dict>
+</plist>
