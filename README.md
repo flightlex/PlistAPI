@@ -76,5 +76,6 @@ var settings = new PlistSettings() { InvalidDataHandlingType = PlistInvalidDataH
 ## TODO
 - A little refactor
 - Add `PlistConverter` attribute for properties to automatically change the type when `serializing/deserializing` at the runtime
+- Add `summeries`
 
 ### __Library is being completely maintenanced by me, so dont be shy and pull some issues :)__
