@@ -1,5 +1,6 @@
 ﻿using PlistAPI.Enums;
 using PlistAPI.Exceptions;
+using PlistAPI.Extensions;
 using PlistAPI.General.Serializers;
 using System.Collections;
 using System.Collections.Generic;
@@ -104,7 +105,7 @@ namespace PlistAPI.General
                 PlistValueType.Dict => new Plist(this.Settings).LoadPlist(element.Elements()),
                 PlistValueType.Array => LoadArray(element.Elements()),
 
-                _ => Settings.InvalidDataHandlingType.ThrowException() ? throw new InvalidDataException("Unsupported element type") : null
+                _ => Settings.InvalidDataHandlingType.IsThrowException() ? throw new InvalidDataException("Unsupported element type") : default
             };
         }
 #endregion
@@ -228,7 +229,7 @@ namespace PlistAPI.General
             }
 
             else
-                return plist.Settings.InvalidDataHandlingType.ThrowException() ? throw new InvalidDataException("Unsupported element type") : null;
+                return plist.Settings.InvalidDataHandlingType.IsThrowException() ? throw new InvalidDataException("Unsupported element type") : default;
         }
 #endregion
 
@@ -248,12 +249,12 @@ namespace PlistAPI.General
         {
             PlistHelper.CheckForObjectAssignation<T>();
 
-            var properties = PlistHelper.GetPlistProperties<T>();
+            var members = PlistHelper.GetPlistPropertyMembers<T>();
 
-            if (properties.Count() < 1)
+            if (members.Count() < 1)
                 throw new PlistPropertiesNotFoundException(nameof(T));
 
-            return PlistDeserializer.DeserializeProperties<T>(new Plist(settings).Load(stream), properties);
+            return PlistDeserializer.DeserializeProperties<T>(new Plist(settings).Load(stream), members);
         }
         #endregion
         #region Serialize
@@ -276,12 +277,12 @@ namespace PlistAPI.General
         {
             PlistHelper.CheckForObjectAssignation<T>();
 
-            var properties = PlistHelper.GetPlistProperties<T>();
+            var members = PlistHelper.GetPlistPropertyMembers<T>();
 
-            if (properties.Count() < 1)
+            if (members.Count() < 1)
                 throw new PlistPropertiesNotFoundException(nameof(T));
 
-            return PlistSerializer.SerializeProperties<T>(instance, new Plist(settings), properties).Save();
+            return PlistSerializer.SerializeProperties<T>(instance, new Plist(settings), members).Save();
         }
         #endregion
         #endregion

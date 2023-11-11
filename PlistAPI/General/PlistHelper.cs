@@ -1,14 +1,13 @@
 ﻿using PlistAPI.Attributes;
 using PlistAPI.Enums;
 using PlistAPI.Exceptions;
+using PlistAPI.Extensions;
+using PlistAPI.Interfaces;
 using System;
 using System.Collections;
 using System.Collections.Generic;
-using System.IO;
 using System.Linq;
 using System.Reflection;
-using System.Runtime;
-using System.Xml.Linq;
 
 namespace PlistAPI.General
 {
@@ -20,91 +19,134 @@ namespace PlistAPI.General
                 throw new PlistObjectNotAssignedException(nameof(T));
         }
 
-        public static IEnumerable<PropertyInfo> GetPlistProperties<T>()
-            => GetPlistProperties(typeof(T));
+        public static IEnumerable<MemberInfo> GetPlistPropertyMembers<T>()
+            => GetPlistPropertyMembers(typeof(T));
 
-        public static IEnumerable<PropertyInfo> GetPlistProperties(Type type)
+        public static IEnumerable<MemberInfo> GetPlistPropertyMembers(Type type)
         {
             return type
-                .GetProperties()
-                .Where(x => x.GetCustomAttribute<PlistPropertyAttribute>() is not null);
+                .GetMembers()
+                .Where(x => (x.MemberType == MemberTypes.Field || x.MemberType == MemberTypes.Property)
+                && x.GetCustomAttribute<PlistPropertyAttribute>() is not null);
         }
 
-        public static bool IsPropertyNested(Type type)
+        public static bool IsPlist(Type type)
         {
             return type.GetCustomAttribute<PlistObjectAttribute>() is not null;
         }
 
         public static bool IsCollection(Type type)
         {
-            return type.IsAssignableTo(typeof(ICollection)) || type.IsAssignableTo(typeof(IEnumerable)) && type.IsGenericType;
+            return type.IsAssignableTo(typeof(ICollection)) || (type.IsAssignableTo(typeof(IEnumerable)) && type.IsGenericType);
         }
 
-        public static string GetPropertyId(this PropertyInfo prop)
+        public static string GetMemberId(MemberInfo prop)
         {
             var attr = prop.GetCustomAttribute<PlistPropertyAttribute>();
-            var id = attr!.Id ?? prop.Name;
 
-            return id;
+            return attr!.Id ?? prop.Name;
         }
 
-        public static PlistValueContainerType GetValueContainerType(this Type prop)
+        public static PlistValueContainerType GetValueContainerType(MemberInfo member)
         {
-            if (IsPropertyNested(prop))
+            var type = member.GetFieldOrPropertyType();
+
+            if (IsPlist(type))
                 return PlistValueContainerType.Dict;
 
-            else if (IsCollection(prop))
+            else if (IsCollection(type))
                 return PlistValueContainerType.Collection;
 
             else
                 return PlistValueContainerType.Basic;
         }
 
-        public static PlistValueType GetValueType(string input, PlistDataType dataType)
+        public static PlistValueType? GetValueType(string input, PlistDataType dataType)
         {
-            if (dataType == PlistDataType.Full)
-                return input switch
+            PlistValueType? result = null;
+            if (dataType.HasFlag(PlistDataType.Full))
+                switch (input)
                 {
-                    "string" => PlistValueType.String,
-                    "integer" => PlistValueType.Integer,
-                    "real" => PlistValueType.Real,
-                    "true" => PlistValueType.True,
-                    "false" => PlistValueType.False,
-                    "dict" => PlistValueType.Dict,
-                    "array" => PlistValueType.Array,
+                    case "string": result = PlistValueType.String; break;
+                    case "integer": result = PlistValueType.Integer; break;
+                    case "real": result = PlistValueType.Real; break;
+                    case "true": result = PlistValueType.True; break;
+                    case "false": result = PlistValueType.False; break;
+                    case "dict": result = PlistValueType.Dict; break;
+                    case "array": result = PlistValueType.Array; break;
+                }
 
-                    _ => throw new InvalidDataException("Unsupported element type")
-                };
+            if (result is not null)
+                return result;
 
-            else if (dataType == PlistDataType.Short)
-                return input switch
+            if (dataType.HasFlag(PlistDataType.Short))
+                switch (input)
                 {
-                    "s" => PlistValueType.String,
-                    "i" => PlistValueType.Integer,
-                    "r" => PlistValueType.Real,
-                    "t" => PlistValueType.True,
-                    "f" => PlistValueType.False,
-                    "d" => PlistValueType.Dict,
-                    "a" => PlistValueType.Array,
+                    case "s": result = PlistValueType.String; break;
+                    case "i": result = PlistValueType.Integer; break;
+                    case "r": result = PlistValueType.Real; break;
+                    case "t": result = PlistValueType.True; break;
+                    case "f": result = PlistValueType.False; break;
+                    case "d": result = PlistValueType.Dict; break;
+                    case "a": result = PlistValueType.Array; break;
+                }
 
-                    _ => throw new InvalidDataException("Unsupported element type")
-                };
+            return result;
+        }
 
-            else if (dataType == PlistDataType.Both)
-                return input switch
-                {
-                    "s" or "string" => PlistValueType.String,
-                    "i" or "integer" => PlistValueType.Integer,
-                    "r" or "real" => PlistValueType.Real,
-                    "t" or "true" => PlistValueType.True,
-                    "f" or "false" => PlistValueType.False,
-                    "d" or "dict" => PlistValueType.Dict,
-                    "a" or "array" => PlistValueType.Array,
+        public static object? ConvertValue(Plist plist, MemberInfo member, object? value, PlistOperation operation)
+        {
+            var attr = member.GetCustomAttribute<PlistConverterAttribute>();
+            var converterType = attr?.ConverterType;
+            var defaultValue = attr?.DefaultValue;
+            bool throwException = plist.Settings.InvalidDataHandlingType.IsThrowException();
 
-                    _ => throw new InvalidDataException("Unsupported element type")
-                };
+            // no converter
+            if (attr is null)
+                return value;
 
-            throw new InvalidOperationException(nameof(dataType));
+            // value is null
+            if (value is null)
+                return throwException ? throw new InvalidOperationException(nameof(value)) : defaultValue;
+
+            // input data
+            if (operation == PlistOperation.Deserialization)
+                if (!attr.ConverterUsage.HasFlag(PlistConverterUsage.ConvertInputType))
+                    return defaultValue;
+
+            // output data
+            if (operation == PlistOperation.Serialization)
+                if (!attr.ConverterUsage.HasFlag(PlistConverterUsage.ConvertOutputType))
+                    return defaultValue;
+
+            // type is null
+            if (converterType is null)
+                return plist.Settings.InvalidDataHandlingType.IsThrowException() ? throw new InvalidOperationException(nameof(converterType)) : value;
+
+            var converterInterface = converterType.GetInterface(typeof(IPlistConverter<,>).FullName);
+
+            // doesnt implement the interface
+            if (converterInterface is null)
+                throw new InvalidOperationException(nameof(value)); // exception only, because the person uses the converter attribute but doesnt performe the requirements
+
+            var method = converterInterface.GetMethods()[(int)operation];
+
+            var genericArguments = converterInterface.GetGenericArguments();
+
+            // cached converters' instances
+            var converterInstance = typeof(Converters)
+                .GetMethod(nameof(Converters.GetConverter))
+                .MakeGenericMethod(
+                    genericArguments[(int)PlistOperation.Deserialization],
+                    genericArguments[(int)PlistOperation.Serialization]
+                )
+                .Invoke(null, new object[] { converterType });
+
+            if (value.GetType() != genericArguments[(int)operation])
+                return throwException ? throw new InvalidOperationException(nameof(value)) : defaultValue;
+
+            var outValue = method.Invoke(converterInstance, new object[] { value });
+            return outValue;
         }
     }
 }

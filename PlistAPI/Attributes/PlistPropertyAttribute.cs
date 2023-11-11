@@ -2,7 +2,7 @@
 
 namespace PlistAPI.Attributes
 {
-    [AttributeUsage(AttributeTargets.Property, AllowMultiple = true)]
+    [AttributeUsage(AttributeTargets.Property | AttributeTargets.Field, AllowMultiple = true)]
     public sealed class PlistPropertyAttribute : Attribute
     {
         public PlistPropertyAttribute()

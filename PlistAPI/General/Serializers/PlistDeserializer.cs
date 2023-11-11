@@ -1,4 +1,6 @@
-﻿using PlistAPI.Exceptions;
+﻿using PlistAPI.Enums;
+using PlistAPI.Exceptions;
+using PlistAPI.Extensions;
 using System;
 using System.Collections;
 using System.Collections.Generic;
@@ -10,71 +12,73 @@ namespace PlistAPI.General.Serializers
 {
     internal static class PlistDeserializer
     {
-        public static T? DeserializeProperties<T>(Plist plist, IEnumerable<PropertyInfo> properties)
+        public static T? DeserializeProperties<T>(Plist plist, IEnumerable<MemberInfo> members)
         {
             var instance = Activator.CreateInstance<T>();
 
-            foreach (var prop in properties)
+            foreach (var member in members)
             {
-                var id = prop.GetPropertyId();
-                var type = prop.PropertyType.GetValueContainerType();
+                var type = PlistHelper.GetValueContainerType(member);
 
                 object? value;
 
-                if (type == Enums.PlistValueContainerType.Basic)
-                    value = DeserializeBasic(plist, id);
+                if (type == PlistValueContainerType.Basic)
+                    value = DeserializeBasic(plist, member);
 
-                else if (type == Enums.PlistValueContainerType.Dict)
-                    value = DeserializeDict(prop, plist);
+                else if (type == PlistValueContainerType.Dict)
+                    value = DeserializeDict(plist, member);
 
-                else if (type == Enums.PlistValueContainerType.Collection)
-                    value = DeserializeCollection(prop, plist);
+                else if (type == PlistValueContainerType.Collection)
+                    value = DeserializeCollection(plist, member);
 
                 else
-                    return plist.Settings.InvalidDataHandlingType.ThrowException() ? throw new InvalidDataException(nameof(type)) : default(T?);
+                    return plist.Settings.InvalidDataHandlingType.IsThrowException() ? throw new InvalidDataException(nameof(type)) : default;
 
                 // boxing struct
                 if (typeof(T).IsValueType)
                 {
                     object? boxed = instance;
-                    prop.SetValue(boxed, value);
+                    member.SetValue(boxed, value);
                     instance = (T?)boxed;
                 }
 
                 // setting value
                 else
-                    prop.SetValue(instance, value);
+                    member.SetValue(instance, value);
             }
 
             return instance;
         }
 
-        private static object DeserializeDict(PropertyInfo property, Plist plist)
+        private static object? DeserializeDict(Plist plist, MemberInfo member)
         {
-            var id = property.GetPropertyId();
-            var nestedPlist = DeserializeBasic(plist, id);
+            var id = PlistHelper.GetMemberId(member);
+            var nestedPlist = DeserializeBasic(plist, member);
 
             return typeof(PlistDeserializer)
                 .GetMethod(nameof(DeserializeProperties), BindingFlags.Static | BindingFlags.Public)
-                .MakeGenericMethod(property.PropertyType)
-                .Invoke(null, new object[] { (Plist)nestedPlist, PlistHelper.GetPlistProperties(property.PropertyType) });
+                .MakeGenericMethod(member.GetFieldOrPropertyType())
+                .Invoke(null, new object?[] { (Plist?)nestedPlist, PlistHelper.GetPlistPropertyMembers(member.GetFieldOrPropertyType()) });
         }
 
-        private static object DeserializeCollection(PropertyInfo property, Plist plist)
+        private static object? DeserializeCollection(Plist plist, MemberInfo member)
         {
-            var id = property.GetPropertyId();
-            var value = DeserializeBasic(plist, id);
+            var value = DeserializeBasic(plist, member);
+            var type = member.GetFieldOrPropertyType();
 
             Type elementType =
-                property.PropertyType.IsArray ?
-                property.PropertyType.GetElementType() :
-                property.PropertyType.IsGenericType ?
-                property.PropertyType.GetGenericArguments().First() :
-                throw new InvalidDataException(nameof(property.PropertyType));
+                type.IsArray ?
+                type.GetElementType() :
+                type.IsGenericType ?
+                type.GetGenericArguments().First() :
+                throw new InvalidDataException(nameof(member));
 
-            var enumerable = (IEnumerable)value;
+            var enumerable = (IEnumerable?)value;
             var listType = typeof(List<>).MakeGenericType(elementType);
             var list = (IList)Activator.CreateInstance(listType);
+
+            if (enumerable is null)
+                return plist.Settings.InvalidDataHandlingType.IsThrowException() ? throw new CorruptedPlistException(nameof(member)) : default;
 
             foreach (var element in enumerable)
             {
@@ -83,7 +87,7 @@ namespace PlistAPI.General.Serializers
                     var parsedElement = typeof(PlistDeserializer)
                         .GetMethod(nameof(DeserializeProperties), BindingFlags.Static | BindingFlags.Public)
                         .MakeGenericMethod(elementType)
-                        .Invoke(null, new object[] { plistElement, PlistHelper.GetPlistProperties(elementType) });
+                        .Invoke(null, new object[] { plistElement, PlistHelper.GetPlistPropertyMembers(elementType) });
 
                     list.Add(parsedElement);
                 }
@@ -93,7 +97,7 @@ namespace PlistAPI.General.Serializers
                 }
             }
 
-            if (property.PropertyType.IsArray)
+            if (member.GetFieldOrPropertyType().IsArray)
             {
                 var array = Array.CreateInstance(elementType, list.Count);
                 list.CopyTo(array, 0);
@@ -105,12 +109,15 @@ namespace PlistAPI.General.Serializers
             return value;
         }
 
-        private static object? DeserializeBasic(Plist plist, string id)
+        private static object? DeserializeBasic(Plist plist, MemberInfo member)
         {
+            var id = PlistHelper.GetMemberId(member);
             plist.TryGetValue(id, out object? value);
 
             if (value is null)
-                return plist.Settings.InvalidDataHandlingType.ThrowException() ? throw new CorruptedPlistException(nameof(id)) : null;
+                return plist.Settings.InvalidDataHandlingType.IsThrowException() ? throw new CorruptedPlistException(nameof(id)) : default;
+
+            value = PlistHelper.ConvertValue(plist, member, value, PlistOperation.Deserialization);
 
             return value;
         }

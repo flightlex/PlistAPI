@@ -2,6 +2,6 @@
 {
     public enum PlistDataType : byte
     {
-        Short, Full, Both
+        Short = 1, Full, Both
     }
 }
