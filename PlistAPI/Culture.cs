@@ -3,7 +3,7 @@ using System.Globalization;
 
 namespace PlistAPI
 {
-    public static class Culture
+    internal static class Culture
     {
         private static CultureInfo cultureInfo;
 

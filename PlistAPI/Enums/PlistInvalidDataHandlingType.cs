@@ -1,11 +1,7 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Text;
-
-namespace PlistAPI.Enums
+﻿namespace PlistAPI.Enums
 {
     public enum PlistInvalidDataHandlingType : byte
     {
-        ThrowException, ReturnNull
+        ThrowException, ReturnDefaultOrOrigin
     }
 }
