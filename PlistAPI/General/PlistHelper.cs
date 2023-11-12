@@ -40,11 +40,11 @@ namespace PlistAPI.General
             return type.IsAssignableTo(typeof(ICollection)) || (type.IsAssignableTo(typeof(IEnumerable)) && type.IsGenericType);
         }
 
-        public static string GetMemberId(MemberInfo prop)
+        public static string[] GetMemberPathOrId(MemberInfo member)
         {
-            var attr = prop.GetCustomAttribute<PlistPropertyAttribute>();
+            var attr = member.GetCustomAttribute<PlistPropertyAttribute>();
 
-            return attr!.Id ?? prop.Name;
+            return attr!.PathOrId ?? new string[1] { member.Name };
         }
 
         public static PlistValueContainerType GetValueContainerType(MemberInfo member)
@@ -99,7 +99,15 @@ namespace PlistAPI.General
             var attr = member.GetCustomAttribute<PlistConverterAttribute>();
             var converterType = attr?.ConverterType;
             var defaultValue = attr?.DefaultValue;
+
+            var customMembers = member.GetCustomAttributes(false)?
+                .AsQueryable()
+                .Where(x => x is PlistConverterMemberAttribute)
+                .Select(x => (PlistConverterMemberAttribute)x)
+                .AsEnumerable();
+
             bool throwException = plist.Settings.InvalidDataHandlingType.IsThrowException();
+            bool useCustomMembers = customMembers is not null && customMembers!.Count() > 0;
 
             // no converter
             if (attr is null)
@@ -127,26 +135,61 @@ namespace PlistAPI.General
 
             // doesnt implement the interface
             if (converterInterface is null)
-                throw new InvalidOperationException(nameof(value)); // exception only, because the person uses the converter attribute but doesnt performe the requirements
+                throw new InvalidOperationException(nameof(value)); // exception only, because the person uses the converter attribute but doesnt perform the requirements
 
-            var method = converterInterface.GetMethods()[(int)operation];
+            var method = converterInterface.GetMethod(
+                operation == PlistOperation.Deserialization
+                    ? nameof(IPlistConverter<object, object>.ReadValue)
+                    : nameof(IPlistConverter<object, object>.WriteValue));
 
             var genericArguments = converterInterface.GetGenericArguments();
 
-            // cached converters' instances
-            var converterInstance = typeof(Converters)
-                .GetMethod(nameof(Converters.GetConverter))
+            // cached converters' instances from a cached method (double cache huh)
+            var cachedConverterMethod = ReflectionContainers.GetOrCreateMethod(
+                nameof(Converters.GetConverter),
+                delegate
+                {
+                    return typeof(Converters).GetMethod(nameof(Converters.GetConverter));
+                });
+
+            var converterInstance = cachedConverterMethod
                 .MakeGenericMethod(
                     genericArguments[(int)PlistOperation.Deserialization],
                     genericArguments[(int)PlistOperation.Serialization]
-                )
-                .Invoke(null, new object[] { converterType });
+                ).Invoke(null, new object[] { converterType, useCustomMembers });
+
+            // setting values for addition
+            if (useCustomMembers)
+                SetValueForConverterMembers(converterInstance, converterType!, customMembers);
 
             if (value.GetType() != genericArguments[(int)operation])
                 return throwException ? throw new InvalidOperationException(nameof(value)) : defaultValue;
 
             var outValue = method.Invoke(converterInstance, new object[] { value });
             return outValue;
+        }
+
+        private static void SetValueForConverterMembers(object? converter, Type converterType, IEnumerable<PlistConverterMemberAttribute> customMembers)
+        {
+            var members = converterType
+                .GetMembers()
+                .Where(x => 
+                    (x.MemberType == MemberTypes.Property || x.MemberType == MemberTypes.Field)
+                    && x.GetCustomAttribute<PlistConverterPropertyAttribute>() is not null);
+
+            if (members.Count() < 1)
+                return;
+
+            foreach (var customMember in customMembers!)
+            {
+                var member = converterType.GetMember(customMember.MemberName).First();
+                var attr = member.GetCustomAttribute<PlistConverterPropertyAttribute>();
+                var defaultValue = attr.DefaultValue;
+
+                var value = customMember.Value ?? defaultValue;
+
+                member.SetValue(converter, value);
+            }
         }
     }
 }

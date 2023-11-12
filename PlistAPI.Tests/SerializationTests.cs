@@ -47,7 +47,7 @@ namespace PlistAPI.Tests
         [Fact]
         public void SimplePlistSerializationToStringUsingShortType_ContainsTest()
         {
-            var plist = new Plist(new(Enums.PlistDataType.Both, Enums.PlistDataType.Short));
+            var plist = new Plist(new() { InputDataType = Enums.PlistDataType.Both, OutputDataType = Enums.PlistDataType.Short });
             plist.Load(Properties.Resources.SimplePlist.GetBytes());
 
             var serialized = plist.SaveToString();

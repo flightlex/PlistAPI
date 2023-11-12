@@ -11,6 +11,7 @@ using System.Text;
 using System.Threading.Tasks;
 using System.Xml;
 using System.Xml.Linq;
+using System;
 // for cancellation tokens
 #if NETSTANDARD2_1
 using System.Threading;
@@ -20,6 +21,9 @@ namespace PlistAPI.General
 {
     public class Plist : Dictionary<string, object?>
     {
+        /// <summary>
+        /// Is just an empty instance of Plist. You probably wont use it, but its used on the internal side.
+        /// </summary>
         public static Plist Empty { get => new(); }
 
         // private properties
@@ -32,19 +36,33 @@ namespace PlistAPI.General
             XmlResolver = null
         };
 
-        // public properties
+        /// <summary>
+        /// Plist settings
+        /// </summary>
         public PlistSettings Settings { get; }
 
-        // constructors
+        /// <summary>
+        /// Creates new instance of Plist with default settings
+        /// </summary>
         public Plist() : this(PlistSettings.DefaultSettings())
         { }
 
+        /// <summary>
+        /// Creates new instance of Plist
+        /// </summary>
+        /// <param name="settings">Settings that will be used in further</param>
         public Plist(PlistSettings settings)
         {
             Settings = settings;
         }
 
         #region Loadings
+        /// <summary>
+        /// Asynchronously parses and loads the plist data
+        /// </summary>
+        /// <param name="stream">Stream that will provide the data</param>
+        /// <returns></returns>
+        /// <exception cref="CorruptedPlistException"></exception>
         public async Task<Plist> LoadAsync(Stream stream)
         {
             XDocument document;
@@ -63,23 +81,62 @@ namespace PlistAPI.General
             return LoadPlist(rootDict.Elements());
         }
 
+        /// <summary>
+        /// Synchronously parses and loads the plist data
+        /// </summary>
+        /// <param name="stream"></param>
+        /// <returns></returns>
         public Plist Load(Stream stream)
             => LoadAsync(stream).GetAwaiter().GetResult();
 
+        /// <summary>
+        /// Synchronously parses and loads the plist data
+        /// </summary>
+        /// <param name="data">Byte array of plist data</param>
+        /// <returns></returns>
         public Plist Load(byte[] data)
             => Load(new MemoryStream(data));
 
+        /// <summary>
+        /// Asynchronously parses and loads the plist data
+        /// </summary>
+        /// <param name="data">Byte array of plist data</param>
+        /// <returns></returns>
         public async Task<Plist> LoadAsync(byte[] data)
             => await LoadAsync(new MemoryStream(data));
 
+        /// <summary>
+        /// Synchronously parses and loads the plist data
+        /// </summary>
+        /// <param name="data">Plist string data</param>
+        /// <returns></returns>
+        public Plist Load(string data)
+            => Load(new MemoryStream(Encoding.UTF8.GetBytes(data)));
+
+        /// <summary>
+        /// Asynchronously parses and loads the plist data
+        /// </summary>
+        /// <param name="data">Plist string data</param>
+        /// <returns></returns>
+        public async Task<Plist> LoadAsync(string data)
+            => await LoadAsync(new MemoryStream(Encoding.UTF8.GetBytes(data)));
+
+        // loads new plist
         private Plist LoadPlist(IEnumerable<XElement> elements)
         {
-            foreach (var item in elements.Pairs())
-                this[item.Key.Value] = GetValue(item.Value);
+            var pairsedElements = elements.Pairs();
+
+            for (var i = 0; i < pairsedElements.Count(); i++)
+            {
+                var element = pairsedElements.ElementAt(i);
+
+                this[element.Key.Value] = GetValue(element.Value);
+            }
 
             return this;
         }
 
+        // loads new array
         private object?[] LoadArray(IEnumerable<XElement> elements)
         {
             var count = elements.Count();
@@ -91,6 +148,7 @@ namespace PlistAPI.General
             return arrayElements;
         }
 
+        // gets the basic value
         private object? GetValue(XElement element)
         {
             var dataType = PlistHelper.GetValueType(element.Name.LocalName, Settings.InputDataType);
@@ -108,8 +166,13 @@ namespace PlistAPI.General
                 _ => Settings.InvalidDataHandlingType.IsThrowException() ? throw new InvalidDataException("Unsupported element type") : default
             };
         }
-#endregion
+        #endregion
         #region Save
+        /// <summary>
+        /// Asynchronously saves the plist data
+        /// </summary>
+        /// <param name="stream">Stream that will be used to save data to</param>
+        /// <returns></returns>
         public async Task SaveToStreamAsync(Stream stream)
         {
             var document = CreateDocument();
@@ -120,6 +183,19 @@ namespace PlistAPI.General
 #endif
         }
 
+        /// <summary>
+        /// Synchronously saves the plist data
+        /// </summary>
+        /// <param name="stream">Stream that will be used to save data to</param>
+        /// <returns></returns>
+        public void SaveToStream(Stream stream)
+            => SaveToStreamAsync(stream).GetAwaiter().GetResult();
+
+
+        /// <summary>
+        /// Asynchronously saves and returns the plist data as byte array
+        /// </summary>
+        /// <returns></returns>
         public async Task<byte[]> SaveAsync()
         {
             var stream = new MemoryStream();
@@ -128,17 +204,26 @@ namespace PlistAPI.General
             return stream.ToArray();
         }
 
-        public void SaveToStream(Stream stream)
-            => SaveToStreamAsync(stream).GetAwaiter().GetResult();
-
+        /// <summary>
+        /// Synchronously saves and returns the plist data as byte array
+        /// </summary>
+        /// <returns></returns>
         public byte[] Save()
             => SaveAsync().GetAwaiter().GetResult();
 
-        public string SaveToString()
-            => Encoding.UTF8.GetString(Save());
-
+        /// <summary>
+        /// Asynchronously saves and returns the plist data as string
+        /// </summary>
+        /// <returns></returns>
         public async Task<string> SaveToStringAsync()
             => Encoding.UTF8.GetString(await SaveAsync());
+
+        /// <summary>
+        /// Synchronously saves and returns the plist data as string
+        /// </summary>
+        /// <returns></returns>
+        public string SaveToString()
+            => Encoding.UTF8.GetString(Save());
 
         private XDocument CreateDocument()
         {
@@ -231,20 +316,65 @@ namespace PlistAPI.General
             else
                 return plist.Settings.InvalidDataHandlingType.IsThrowException() ? throw new InvalidDataException("Unsupported element type") : default;
         }
-#endregion
+        #endregion
 
         // static methods
         #region statics
         #region Deserialize
+        /// <summary>
+        /// Deserializes the data to a selected class
+        /// </summary>
+        /// <typeparam name="T">Class type to be created on deserialization</typeparam>
+        /// <param name="data">Input data</param>
+        /// <returns></returns>
+        public static T? Deserialize<T>(string data)
+            => Deserialize<T>(Encoding.UTF8.GetBytes(data), PlistSettings.DefaultSettings());
+
+        /// <summary>
+        /// Deserializes the data to a selected class
+        /// </summary>
+        /// <typeparam name="T">Class type to be created on deserialization</typeparam>
+        /// <param name="settings">Plist settings to be used furtherly</param>
+        /// <param name="data">Input data</param>
+        /// <returns></returns>
+        public static T? Deserialize<T>(string data, PlistSettings settings)
+            => Deserialize<T>(Encoding.UTF8.GetBytes(data), settings);
+
+        /// <summary>
+        /// Deserializes the data to a selected class
+        /// </summary>
+        /// <typeparam name="T">Class type to be created on deserialization</typeparam>
+        /// <param name="data">Input data</param>
+        /// <returns></returns>
         public static T? Deserialize<T>(byte[] data)
             => Deserialize<T>(data, PlistSettings.DefaultSettings());
 
+        /// <summary>
+        /// Deserializes the data to a selected class
+        /// </summary>
+        /// <typeparam name="T">Class type to be created on deserialization</typeparam>
+        /// <param name="settings">Plist settings to be used furtherly</param>
+        /// <param name="data">Input data</param>
+        /// <returns></returns>
         public static T? Deserialize<T>(byte[] data, PlistSettings settings)
             => Deserialize<T>(new MemoryStream(data), settings);
 
+        /// <summary>
+        /// Deserializes the data to a selected class
+        /// </summary>
+        /// <typeparam name="T">Class type to be created on deserialization</typeparam>
+        /// <param name="stream">Input data</param>
+        /// <returns></returns>
         public static T? Deserialize<T>(Stream stream)
             => Deserialize<T>(stream, PlistSettings.DefaultSettings());
 
+        /// <summary>
+        /// Deserializes the data to a selected class
+        /// </summary>
+        /// <typeparam name="T">Class type to be created on deserialization</typeparam>
+        /// <param name="settings">Plist settings to be used furtherly</param>
+        /// <param name="stream">Input data</param>
+        /// <returns></returns>
         public static T? Deserialize<T>(Stream stream, PlistSettings settings)
         {
             PlistHelper.CheckForObjectAssignation<T>();
@@ -254,26 +384,57 @@ namespace PlistAPI.General
             if (members.Count() < 1)
                 throw new PlistPropertiesNotFoundException(nameof(T));
 
-            return PlistDeserializer.DeserializeProperties<T>(new Plist(settings).Load(stream), members);
+            return PlistDeserializer.DeserializeMembers<T>(new Plist(settings).Load(stream), members);
         }
         #endregion
         #region Serialize
+        /// <summary>
+        /// Serializes objects from anonymous object type
+        /// </summary>
+        /// <param name="instance">Object instance</param>
+        /// <returns></returns>
         public static byte[] Serialize(object instance)
             => Serialize(instance, PlistSettings.DefaultSettings());
 
+        /// <summary>
+        /// Serializes objects from anonymous object type
+        /// </summary>
+        /// <param name="settings">Plist settings to be used furtherly</param>
+        /// <param name="instance">Object instance</param>
+        /// <returns></returns>
         public static byte[] Serialize(object instance, PlistSettings settings)
         {
-            return (byte[])typeof(Plist)
-                .GetMethods(BindingFlags.Static | BindingFlags.Public)
-                .First(x => x.ContainsGenericParameters && x.GetParameters().Length == 2)
-                .MakeGenericMethod(instance.GetType())
-                .Invoke(null, new object[] { instance, settings });
+            var method = ReflectionContainers.GetOrCreateMethod(
+                nameof(SerializeInternal),
+                () => {
+                    return typeof(Plist)
+                    .GetMethod(nameof(SerializeInternal), BindingFlags.Static | BindingFlags.NonPublic)
+                    .MakeGenericMethod(instance.GetType());
+                });
+
+            return (byte[])method.Invoke(null, new object[] { instance, settings });
         }
 
+        /// <summary>
+        /// Serializes objects from known object type
+        /// </summary>
+        /// <typeparam name="T">Class type to be serialized from</typeparam>
+        /// <param name="instance">Object instance</param>
+        /// <returns></returns>
         public static byte[] Serialize<T>(T instance)
-            => Serialize<T>(instance, PlistSettings.DefaultSettings());
+            => SerializeInternal<T>(instance, PlistSettings.DefaultSettings());
 
+        /// <summary>
+        /// Serializes objects from known object type
+        /// </summary>
+        /// <typeparam name="T">Class type to be serialized from</typeparam>
+        /// <param name="settings">Plist settings to be used furtherly</param>
+        /// <param name="instance">Object instance</param>
+        /// <returns></returns>
         public static byte[] Serialize<T>(T instance, PlistSettings settings)
+            => SerializeInternal<T>(instance, settings);
+
+        private static byte[] SerializeInternal<T>(T instance, PlistSettings settings)
         {
             PlistHelper.CheckForObjectAssignation<T>();
 
@@ -282,7 +443,7 @@ namespace PlistAPI.General
             if (members.Count() < 1)
                 throw new PlistPropertiesNotFoundException(nameof(T));
 
-            return PlistSerializer.SerializeProperties<T>(instance, new Plist(settings), members).Save();
+            return PlistSerializer.SerializeMembers<T>(instance, new Plist(settings), members).Save();
         }
         #endregion
         #endregion
