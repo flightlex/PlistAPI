@@ -53,7 +53,7 @@ class SomeClass
 }
 ```
 
-By **NOT** providing the type in the generic of `Serialize()`, the serialization will be UNsegnifically slower, but anyways it will! *(because of reflection manipulations to obtain the type from the object instance)*
+By **NOT** providing the type in the generic of `Serialize()`, the serialization will be slightly slower, but anyways it will! *(because of reflection manipulations to obtain the type from the object instance)*
 
 ## Invalid Data Handling
 You can use `PlistInvalidDataHandlingType` to handle invalid data, example:
